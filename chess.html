@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Chess</title>
+  <!-- chess.js for legal-move validation / game state -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <style>
+    /* ── Reset & Base ──────────────────────────────────────── */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      background: #0f0f23;
+      color: #ddd;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #app { display: flex; gap: 20px; align-items: flex-start; }
+
+    /* ── Board Layout ───────────────────────────────────────── */
+    #board-area { display: flex; flex-direction: column; align-items: flex-start; }
+    #board-row  { display: flex; align-items: stretch; }
+
+    #rank-labels {
+      display: flex; flex-direction: column;
+      justify-content: space-around;
+      width: 18px; margin-right: 4px; height: 480px;
+    }
+    .rank-lbl { font-size: 12px; color: #666; text-align: center; }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 60px);
+      grid-template-rows:    repeat(8, 60px);
+      border: 2px solid #444;
+    }
+
+    #file-labels { display: flex; margin-left: 22px; margin-top: 4px; }
+    .file-lbl { width: 60px; text-align: center; font-size: 12px; color: #666; }
+
+    /* ── Squares ────────────────────────────────────────────── */
+    .sq {
+      width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 42px; line-height: 1;
+      position: relative; cursor: pointer; user-select: none;
+    }
+    .sq.light { background: #f0d9b5; }
+    .sq.dark  { background: #b58863; }
+
+    /* Highlight layers — applied via JS */
+    .sq.sel          { background: #f6f669 !important; }
+    .sq.in-chk       { background: rgba(230, 40, 40, 0.70) !important; }
+    .sq.valid-move   { background: rgba(80, 180, 80, 0.55) !important; }
+    .sq.valid-cap    { background: rgba(200, 60, 60, 0.45) !important; }
+    .sq.lm-from      { background: rgba(100, 100, 210, 0.45) !important; }
+    .sq.lm-to        { background: rgba(100, 100, 210, 0.45) !important; }
+
+    /* Dot hint on empty valid squares */
+    .sq.valid-move::after {
+      content: ''; position: absolute;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: rgba(0,0,0,0.20); pointer-events: none;
+    }
+    /* Ring hint on capturable pieces */
+    .sq.valid-cap::after {
+      content: ''; position: absolute; inset: 2px; border-radius: 50%;
+      border: 4px solid rgba(0,0,0,0.28); pointer-events: none;
+    }
+
+    .piece { text-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; position: relative; z-index: 1; }
+
+    /* ── Side Panel ─────────────────────────────────────────── */
+    #panel { width: 210px; display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: #16213e; border-radius: 8px;
+      padding: 12px 14px; border: 1px solid #2a3a5e;
+    }
+    .card h3 {
+      font-size: 11px; text-transform: uppercase;
+      letter-spacing: 1.2px; color: #556; margin-bottom: 10px;
+    }
+
+    /* Status card */
+    #status-txt { font-size: 17px; font-weight: 700; color: #fff; min-height: 24px; }
+    #sub-txt    { font-size: 13px; color: #778; margin-top: 3px; }
+    #thinking   {
+      font-size: 12px; color: #fbbf24; margin-top: 5px; display: none;
+      animation: blink 0.9s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+    /* Buttons */
+    .btn {
+      display: block; width: 100%; padding: 8px; margin-bottom: 8px;
+      border: none; border-radius: 6px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: opacity .15s, transform .1s;
+    }
+    .btn:hover  { opacity: .85; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:last-of-type { margin-bottom: 0; }
+    .btn-green { background: #4ade80; color: #0a0a1a; }
+    .btn-blue  { background: #60a5fa; color: #0a0a1a; }
+
+    select {
+      width: 100%; padding: 7px 8px; margin-top: 8px;
+      border: 1px solid #3a4a6e; border-radius: 6px;
+      background: #0f1e3a; color: #ddd; font-size: 13px; cursor: pointer;
+    }
+
+    /* Material */
+    .mat-lbl { font-size: 11px; color: #556; margin-bottom: 3px; }
+    .mat-lbl + .mat-lbl { margin-top: 8px; }
+    #cap-black, #cap-white { font-size: 19px; min-height: 24px; word-break: break-all; }
+    #score-line { margin-top: 7px; font-size: 13px; color: #4ade80; }
+
+    /* Move history */
+    #history {
+      max-height: 180px; overflow-y: auto;
+      font-size: 13px; font-family: monospace; line-height: 1.65;
+      scrollbar-width: thin; scrollbar-color: #334 transparent;
+    }
+    .hist-row { display: grid; grid-template-columns: 26px 1fr 1fr; gap: 2px; }
+    .hist-num { color: #445; }
+    .hist-san { padding: 1px 4px; border-radius: 3px; }
+    .hist-san:hover { background: #2d4a7a; }
+
+    /* ── Promotion Modal ─────────────────────────────────────── */
+    #promo-modal {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.78); z-index: 200;
+      align-items: center; justify-content: center;
+    }
+    #promo-modal.open { display: flex; }
+    #promo-box {
+      background: #16213e; border: 2px solid #3a4a6e;
+      border-radius: 12px; padding: 24px; text-align: center;
+    }
+    #promo-box p { color: #bbb; margin-bottom: 14px; font-size: 14px; }
+    #promo-choices { display: flex; gap: 10px; }
+    .promo-opt {
+      font-size: 52px; padding: 10px 14px; line-height: 1;
+      border-radius: 8px; border: 2px solid transparent; cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .promo-opt:hover { border-color: #4ade80; background: #1e3a5f; }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Board ─────────────────────────────────────────────── -->
+  <div id="board-area">
+    <div id="board-row">
+      <div id="rank-labels">
+        <span class="rank-lbl">8</span><span class="rank-lbl">7</span>
+        <span class="rank-lbl">6</span><span class="rank-lbl">5</span>
+        <span class="rank-lbl">4</span><span class="rank-lbl">3</span>
+        <span class="rank-lbl">2</span><span class="rank-lbl">1</span>
+      </div>
+      <div id="board"></div>
+    </div>
+    <div id="file-labels">
+      <span class="file-lbl">a</span><span class="file-lbl">b</span>
+      <span class="file-lbl">c</span><span class="file-lbl">d</span>
+      <span class="file-lbl">e</span><span class="file-lbl">f</span>
+      <span class="file-lbl">g</span><span class="file-lbl">h</span>
+    </div>
+  </div>
+
+  <!-- ── Side Panel ───────────────────────────────────────── -->
+  <div id="panel">
+
+    <div class="card">
+      <h3>Game Status</h3>
+      <div id="status-txt">White to move</div>
+      <div id="sub-txt"></div>
+      <div id="thinking">AI is thinking…</div>
+    </div>
+
+    <div class="card">
+      <h3>Controls</h3>
+      <button class="btn btn-green" onclick="newGame()">New Game</button>
+      <button class="btn btn-blue"  onclick="undoMove()">↩ Undo Move</button>
+      <select id="diff-sel" onchange="changeDiff()">
+        <option value="1">Easy  (depth 1)</option>
+        <option value="2" selected>Medium (depth 2)</option>
+        <option value="3">Hard  (depth 3)</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h3>Material</h3>
+      <div class="mat-lbl">Black captured:</div>
+      <div id="cap-black">—</div>
+      <div class="mat-lbl">White captured:</div>
+      <div id="cap-white">—</div>
+      <div id="score-line"></div>
+    </div>
+
+    <div class="card">
+      <h3>Move History</h3>
+      <div id="history"><span style="color:#445">No moves yet</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Pawn Promotion Modal ──────────────────────────────── -->
+<div id="promo-modal">
+  <div id="promo-box">
+    <p>Choose promotion piece:</p>
+    <div id="promo-choices"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG — tweak these to change game behaviour
+   ============================================================ */
+const CONFIG = {
+  AI_DEPTH:    2,    // Minimax search depth: 1 = Easy, 2 = Medium, 3 = Hard
+  AI_DELAY_MS: 80,   // ms before AI runs (lets the board repaint first)
+};
+
+/* ============================================================
+   PIECE GLYPHS & VALUES
+   ============================================================ */
+const GLYPH = {
+  wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+  bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
+};
+
+// Material values in centipawns
+const VAL = { p:100, n:320, b:330, r:500, q:900, k:20000 };
+
+/* ============================================================
+   PIECE-SQUARE TABLES  (white's perspective; row 0 = rank 8)
+   Mirrored for black. Encourages centre control and good structure.
+   ============================================================ */
+const PST = {
+  p: [[ 0,  0,  0,  0,  0,  0,  0,  0],
+      [50, 50, 50, 50, 50, 50, 50, 50],
+      [10, 10, 20, 30, 30, 20, 10, 10],
+      [ 5,  5, 10, 25, 25, 10,  5,  5],
+      [ 0,  0,  0, 20, 20,  0,  0,  0],
+      [ 5, -5,-10,  0,  0,-10, -5,  5],
+      [ 5, 10, 10,-20,-20, 10, 10,  5],
+      [ 0,  0,  0,  0,  0,  0,  0,  0]],
+
+  n: [[-50,-40,-30,-30,-30,-30,-40,-50],
+      [-40,-20,  0,  0,  0,  0,-20,-40],
+      [-30,  0, 10, 15, 15, 10,  0,-30],
+      [-30,  5, 15, 20, 20, 15,  5,-30],
+      [-30,  0, 15, 20, 20, 15,  0,-30],
+      [-30,  5, 10, 15, 15, 10,  5,-30],
+      [-40,-20,  0,  5,  5,  0,-20,-40],
+      [-50,-40,-30,-30,-30,-30,-40,-50]],
+
+  b: [[-20,-10,-10,-10,-10,-10,-10,-20],
+      [-10,  0,  0,  0,  0,  0,  0,-10],
+      [-10,  0,  5, 10, 10,  5,  0,-10],
+      [-10,  5,  5, 10, 10,  5,  5,-10],
+      [-10,  0, 10, 10, 10, 10,  0,-10],
+      [-10, 10, 10, 10, 10, 10, 10,-10],
+      [-10,  5,  0,  0,  0,  0,  5,-10],
+      [-20,-10,-10,-10,-10,-10,-10,-20]],
+
+  r: [[ 0,  0,  0,  0,  0,  0,  0,  0],
+      [ 5, 10, 10, 10, 10, 10, 10,  5],
+      [-5,  0,  0,  0,  0,  0,  0, -5],
+      [-5,  0,  0,  0,  0,  0,  0, -5],
+      [-5,  0,  0,  0,  0,  0,  0, -5],
+      [-5,  0,  0,  0,  0,  0,  0, -5],
+      [-5,  0,  0,  0,  0,  0,  0, -5],
+      [ 0,  0,  0,  5,  5,  0,  0,  0]],
+
+  q: [[-20,-10,-10, -5, -5,-10,-10,-20],
+      [-10,  0,  0,  0,  0,  0,  0,-10],
+      [-10,  0,  5,  5,  5,  5,  0,-10],
+      [ -5,  0,  5,  5,  5,  5,  0, -5],
+      [  0,  0,  5,  5,  5,  5,  0, -5],
+      [-10,  5,  5,  5,  5,  5,  0,-10],
+      [-10,  0,  5,  0,  0,  0,  0,-10],
+      [-20,-10,-10, -5, -5,-10,-10,-20]],
+
+  k: [[-30,-40,-40,-50,-50,-40,-40,-30],
+      [-30,-40,-40,-50,-50,-40,-40,-30],
+      [-30,-40,-40,-50,-50,-40,-40,-30],
+      [-30,-40,-40,-50,-50,-40,-40,-30],
+      [-20,-30,-30,-40,-40,-30,-30,-20],
+      [-10,-20,-20,-20,-20,-20,-20,-10],
+      [ 20, 20,  0,  0,  0,  0, 20, 20],
+      [ 20, 30, 10,  0,  0, 10, 30, 20]],
+};
+
+/* ============================================================
+   GAME STATE — single source of truth
+   ============================================================ */
+const GS = {
+  chess:       null,   // chess.js instance
+  selSq:       null,   // currently selected square string, e.g. 'e2'
+  validMoves:  [],     // legal destination squares for the selected piece
+  lastMove:    null,   // { from, to } — for highlighting the last move
+  gameOver:    false,
+  aiTurn:      false,
+  pendingProm: null,   // { from, to } — awaiting promotion choice
+};
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const FILES = 'abcdefgh';
+function sqName(row, col) { return FILES[col] + (8 - row); }
+
+/* ============================================================
+   INIT / NEW GAME
+   ============================================================ */
+function newGame() {
+  GS.chess       = new Chess();
+  GS.selSq       = null;
+  GS.validMoves  = [];
+  GS.lastMove    = null;
+  GS.gameOver    = false;
+  GS.aiTurn      = false;
+  GS.pendingProm = null;
+  render();
+}
+
+/* ============================================================
+   RENDERING — called after every state change
+   ============================================================ */
+function render() {
+  renderBoard();
+  renderStatus();
+  renderHistory();
+  renderMaterial();
+}
+
+function renderBoard() {
+  const el    = document.getElementById('board');
+  const board = GS.chess.board();    // 8×8, index [0] = rank 8
+  const turn  = GS.chess.turn();
+  const inChk = GS.chess.in_check();
+
+  // Locate the king that is in check (to highlight its square)
+  let chkSq = null;
+  if (inChk) {
+    outer: for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        if (p && p.type === 'k' && p.color === turn) { chkSq = sqName(r, c); break outer; }
+      }
+    }
+  }
+
+  const frag = document.createDocumentFragment();
+  for (let row = 0; row < 8; row++) {
+    for (let col = 0; col < 8; col++) {
+      const sq    = sqName(row, col);
+      const piece = board[row][col];
+      const cell  = document.createElement('div');
+      cell.className = 'sq ' + ((row + col) % 2 === 0 ? 'light' : 'dark');
+      cell.dataset.sq = sq;
+
+      // Apply highlight classes (priority: selected > check > valid > last-move)
+      if (sq === GS.selSq) {
+        cell.classList.add('sel');
+      } else if (sq === chkSq) {
+        cell.classList.add('in-chk');
+      } else if (GS.validMoves.includes(sq)) {
+        cell.classList.add(piece ? 'valid-cap' : 'valid-move');
+      } else if (GS.lastMove) {
+        if (sq === GS.lastMove.from) cell.classList.add('lm-from');
+        if (sq === GS.lastMove.to)   cell.classList.add('lm-to');
+      }
+
+      if (piece) {
+        const span = document.createElement('span');
+        span.className   = 'piece';
+        span.textContent = GLYPH[piece.color + piece.type.toUpperCase()];
+        cell.appendChild(span);
+      }
+
+      cell.addEventListener('click', onSquareClick);
+      frag.appendChild(cell);
+    }
+  }
+  el.innerHTML = '';
+  el.appendChild(frag);
+}
+
+function renderStatus() {
+  const chess  = GS.chess;
+  const sTxt   = document.getElementById('status-txt');
+  const sub    = document.getElementById('sub-txt');
+  sTxt.style.color = '#fff';
+  sub.textContent  = '';
+
+  if (chess.in_checkmate()) {
+    const winner = chess.turn() === 'w' ? 'Black' : 'White';
+    sTxt.textContent = `${winner} wins! Checkmate`;
+    sTxt.style.color = '#4ade80';
+    GS.gameOver = true;
+  } else if (chess.in_stalemate()) {
+    sTxt.textContent = 'Draw — Stalemate';
+    sTxt.style.color = '#fbbf24';
+    GS.gameOver = true;
+  } else if (chess.in_draw()) {
+    sTxt.textContent = 'Draw';
+    sTxt.style.color = '#fbbf24';
+    sub.textContent  = chess.in_threefold_repetition() ? 'Threefold repetition'
+                     : chess.insufficient_material()   ? 'Insufficient material'
+                     : '50-move rule';
+    GS.gameOver = true;
+  } else if (chess.in_check()) {
+    sTxt.textContent = 'Check!';
+    sTxt.style.color = '#f87171';
+    sub.textContent  = chess.turn() === 'w' ? 'White to move' : 'Black to move';
+  } else {
+    sTxt.textContent = chess.turn() === 'w' ? 'White to move' : 'Black to move';
+  }
+}
+
+function renderHistory() {
+  const hist = GS.chess.history();
+  const el   = document.getElementById('history');
+  if (!hist.length) {
+    el.innerHTML = '<span style="color:#445">No moves yet</span>';
+    return;
+  }
+  let html = '';
+  for (let i = 0; i < hist.length; i += 2) {
+    html += `<div class="hist-row">
+      <span class="hist-num">${Math.floor(i / 2) + 1}.</span>
+      <span class="hist-san">${hist[i] || ''}</span>
+      <span class="hist-san">${hist[i + 1] || ''}</span>
+    </div>`;
+  }
+  el.innerHTML = html;
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderMaterial() {
+  const hist  = GS.chess.history({ verbose: true });
+  const byW   = [], byB = [];
+  let wScore  = 0, bScore = 0;
+
+  hist.forEach(m => {
+    if (!m.captured) return;
+    const v   = VAL[m.captured] || 0;
+    const key = (m.color === 'w' ? 'b' : 'w') + m.captured.toUpperCase();
+    if (m.color === 'w') { byW.push(GLYPH[key]); wScore += v; }
+    else                  { byB.push(GLYPH[key]); bScore += v; }
+  });
+
+  document.getElementById('cap-black').textContent = byW.join('') || '—';
+  document.getElementById('cap-white').textContent = byB.join('') || '—';
+
+  const diff = wScore - bScore;
+  const sEl  = document.getElementById('score-line');
+  sEl.textContent = diff > 0 ? `+${diff / 100} White`
+                 : diff < 0 ? `+${-diff / 100} Black`
+                 : 'Even';
+}
+
+function setThinking(on) {
+  document.getElementById('thinking').style.display = on ? 'block' : 'none';
+}
+
+/* ============================================================
+   CLICK HANDLER
+   ============================================================ */
+function onSquareClick(e) {
+  if (GS.gameOver || GS.aiTurn) return;
+  const sq    = e.currentTarget.dataset.sq;
+  const chess = GS.chess;
+  const piece = chess.get(sq);
+
+  if (GS.selSq) {
+    if (GS.validMoves.includes(sq)) {
+      doMove(GS.selSq, sq);        // execute the selected move
+      return;
+    }
+    if (piece && piece.color === 'w' && chess.turn() === 'w') {
+      selectSq(sq);                 // re-select a different own piece
+      return;
+    }
+    // clicked elsewhere — deselect
+    GS.selSq = null; GS.validMoves = []; renderBoard();
+    return;
+  }
+
+  // Nothing selected: try to select a white piece on white's turn
+  if (piece && piece.color === 'w' && chess.turn() === 'w') selectSq(sq);
+}
+
+function selectSq(sq) {
+  GS.selSq      = sq;
+  GS.validMoves = GS.chess.moves({ square: sq, verbose: true }).map(m => m.to);
+  renderBoard();
+}
+
+/* ============================================================
+   MOVE EXECUTION
+   ============================================================ */
+function doMove(from, to, promoType) {
+  const chess = GS.chess;
+  const piece = chess.get(from);
+
+  // Detect pawn promotion — ask the human; AI always auto-queens
+  if (!promoType && piece && piece.type === 'p') {
+    if ((piece.color === 'w' && to[1] === '8') ||
+        (piece.color === 'b' && to[1] === '1')) {
+      GS.pendingProm = { from, to };
+      showPromoModal('w');
+      return;
+    }
+  }
+
+  const moveObj = promoType ? { from, to, promotion: promoType } : { from, to };
+  const result  = chess.move(moveObj);
+  if (!result) return;   // illegal — ignore silently
+
+  GS.selSq     = null;
+  GS.validMoves = [];
+  GS.lastMove  = { from, to };
+
+  render();
+
+  if (!GS.gameOver && chess.turn() === 'b') scheduleAI();
+}
+
+/* ============================================================
+   UNDO — steps back one full move-pair (human + AI)
+   ============================================================ */
+function undoMove() {
+  if (GS.aiTurn) return;
+  GS.chess.undo();                                       // undo last half-move
+  if (GS.chess.turn() === 'b') GS.chess.undo();         // undo the other half-move
+  GS.selSq      = null;
+  GS.validMoves = [];
+  GS.lastMove   = null;
+  GS.gameOver   = false;
+  render();
+}
+
+/* ============================================================
+   PAWN PROMOTION MODAL
+   ============================================================ */
+function showPromoModal(color) {
+  const glyphs = color === 'w'
+    ? [['q','♕'],['r','♖'],['b','♗'],['n','♘']]
+    : [['q','♛'],['r','♜'],['b','♝'],['n','♞']];
+  document.getElementById('promo-choices').innerHTML =
+    glyphs.map(([t, g]) => `<div class="promo-opt" onclick="pickPromo('${t}')">${g}</div>`).join('');
+  document.getElementById('promo-modal').classList.add('open');
+}
+
+function pickPromo(type) {
+  document.getElementById('promo-modal').classList.remove('open');
+  const { from, to } = GS.pendingProm;
+  GS.pendingProm = null;
+  doMove(from, to, type);
+}
+
+/* ============================================================
+   DIFFICULTY SELECTOR
+   ============================================================ */
+function changeDiff() {
+  CONFIG.AI_DEPTH = parseInt(document.getElementById('diff-sel').value);
+}
+
+/* ============================================================
+   AI — SCHEDULING
+   ============================================================ */
+function scheduleAI() {
+  GS.aiTurn = true;
+  setThinking(true);
+  // Small delay so the board repaints before the blocking search
+  setTimeout(runAI, CONFIG.AI_DELAY_MS);
+}
+
+function runAI() {
+  const move = getBestMove(GS.chess, CONFIG.AI_DEPTH);
+  if (move) {
+    // Black pawn reaching rank 1 → auto-promote to queen
+    const piece = GS.chess.get(move.from);
+    const promo = (piece && piece.type === 'p' && move.to[1] === '1') ? 'q' : undefined;
+    GS.chess.move({ from: move.from, to: move.to, promotion: promo });
+    GS.lastMove = { from: move.from, to: move.to };
+  }
+  GS.aiTurn     = false;
+  GS.selSq      = null;
+  GS.validMoves = [];
+  setThinking(false);
+  render();
+}
+
+/* ============================================================
+   AI — MINIMAX WITH ALPHA-BETA PRUNING
+   AI plays Black → minimising player.
+   White's turn → maximising player.
+   ============================================================ */
+
+// Return the best move for whichever colour is to move (here: Black).
+function getBestMove(chess, depth) {
+  const moves = orderMoves(chess.moves({ verbose: true }));
+  if (!moves.length) return null;
+
+  let best    = null;
+  let bestVal = Infinity;   // AI minimises
+
+  for (const m of moves) {
+    chess.move(m);
+    const v = minimax(chess, depth - 1, -Infinity, Infinity, true);
+    chess.undo();
+    if (v < bestVal) { bestVal = v; best = m; }
+  }
+  return best;
+}
+
+// Standard alpha-beta minimax.
+function minimax(chess, depth, alpha, beta, maximising) {
+  if (depth === 0 || chess.game_over()) return evaluate(chess);
+
+  const moves = orderMoves(chess.moves({ verbose: true }));
+
+  if (maximising) {           // White's turn
+    let best = -Infinity;
+    for (const m of moves) {
+      chess.move(m);
+      best  = Math.max(best, minimax(chess, depth - 1, alpha, beta, false));
+      alpha = Math.max(alpha, best);
+      chess.undo();
+      if (beta <= alpha) break;   // beta cut-off
+    }
+    return best;
+  } else {                    // Black's turn
+    let best = Infinity;
+    for (const m of moves) {
+      chess.move(m);
+      best = Math.min(best, minimax(chess, depth - 1, alpha, beta, true));
+      beta = Math.min(beta, best);
+      chess.undo();
+      if (beta <= alpha) break;   // alpha cut-off
+    }
+    return best;
+  }
+}
+
+// Move ordering: try higher-value captures first — improves pruning efficiency.
+function orderMoves(moves) {
+  return moves.sort((a, b) =>
+    (b.captured ? VAL[b.captured] || 0 : 0) - (a.captured ? VAL[a.captured] || 0 : 0)
+  );
+}
+
+/* ============================================================
+   EVALUATION  (positive = good for White)
+   Material + piece-square table bonuses.
+   ============================================================ */
+function evaluate(chess) {
+  if (chess.in_checkmate()) return chess.turn() === 'w' ? -99999 : 99999;
+  if (chess.in_draw() || chess.in_stalemate()) return 0;
+
+  let score = 0;
+  const board = chess.board();
+
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const p = board[r][c];
+      if (!p) continue;
+      // Mirror PST row for Black so the table reads from each side's own perspective
+      const pstRow = p.color === 'w' ? r : 7 - r;
+      const bonus  = PST[p.type] ? PST[p.type][pstRow][c] : 0;
+      score += (p.color === 'w' ? 1 : -1) * (VAL[p.type] + bonus);
+    }
+  }
+  return score;
+}
+
+/* ============================================================
+   BOOTSTRAP
+   ============================================================ */
+newGame();
+</script>
+</body>
+</html>
