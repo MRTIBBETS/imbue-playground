@@ -11,8 +11,8 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: 'Segoe UI', Tahoma, sans-serif;
-      background: #0f0f23;
-      color: #ddd;
+      background: #F2EDE3;
+      color: #1F1A14;
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -30,17 +30,17 @@
       justify-content: space-around;
       width: 18px; margin-right: 4px; height: 480px;
     }
-    .rank-lbl { font-size: 12px; color: #666; text-align: center; }
+    .rank-lbl { font-size: 12px; color: #9A8E82; text-align: center; }
 
     #board {
       display: grid;
       grid-template-columns: repeat(8, 60px);
       grid-template-rows:    repeat(8, 60px);
-      border: 2px solid #444;
+      border: 2px solid #9A7B60;
     }
 
     #file-labels { display: flex; margin-left: 22px; margin-top: 4px; }
-    .file-lbl { width: 60px; text-align: center; font-size: 12px; color: #666; }
+    .file-lbl { width: 60px; text-align: center; font-size: 12px; color: #9A8E82; }
 
     /* ── Squares ────────────────────────────────────────────── */
     .sq {
@@ -49,16 +49,16 @@
       font-size: 42px; line-height: 1;
       position: relative; cursor: pointer; user-select: none;
     }
-    .sq.light { background: #f0d9b5; }
-    .sq.dark  { background: #b58863; }
+    .sq.light { background: #EDD9B5; }
+    .sq.dark  { background: #A07850; }
 
     /* Highlight layers — applied via JS */
-    .sq.sel          { background: #f6f669 !important; }
-    .sq.in-chk       { background: rgba(230, 40, 40, 0.70) !important; }
-    .sq.valid-move   { background: rgba(80, 180, 80, 0.55) !important; }
-    .sq.valid-cap    { background: rgba(200, 60, 60, 0.45) !important; }
-    .sq.lm-from      { background: rgba(100, 100, 210, 0.45) !important; }
-    .sq.lm-to        { background: rgba(100, 100, 210, 0.45) !important; }
+    .sq.sel          { background: #F5C842 !important; }
+    .sq.in-chk       { background: rgba(196, 68, 30, 0.70) !important; }
+    .sq.valid-move   { background: rgba(80, 160, 90, 0.50) !important; }
+    .sq.valid-cap    { background: rgba(196, 68, 30, 0.45) !important; }
+    .sq.lm-from      { background: rgba(196, 140, 60, 0.45) !important; }
+    .sq.lm-to        { background: rgba(196, 140, 60, 0.45) !important; }
 
     /* Dot hint on empty valid squares */
     .sq.valid-move::after {
@@ -72,24 +72,24 @@
       border: 4px solid rgba(0,0,0,0.28); pointer-events: none;
     }
 
-    .piece { text-shadow: 0 1px 3px rgba(0,0,0,0.6); pointer-events: none; position: relative; z-index: 1; }
+    .piece { text-shadow: 0 1px 2px rgba(0,0,0,0.35); pointer-events: none; position: relative; z-index: 1; }
 
     /* ── Side Panel ─────────────────────────────────────────── */
     #panel { width: 210px; display: flex; flex-direction: column; gap: 12px; }
     .card {
-      background: #16213e; border-radius: 8px;
-      padding: 12px 14px; border: 1px solid #2a3a5e;
+      background: #EAE3D6; border-radius: 8px;
+      padding: 12px 14px; border: 1px solid #CCC2B0;
     }
     .card h3 {
       font-size: 11px; text-transform: uppercase;
-      letter-spacing: 1.2px; color: #556; margin-bottom: 10px;
+      letter-spacing: 1.2px; color: #9A8E82; margin-bottom: 10px;
     }
 
     /* Status card */
-    #status-txt { font-size: 17px; font-weight: 700; color: #fff; min-height: 24px; }
-    #sub-txt    { font-size: 13px; color: #778; margin-top: 3px; }
+    #status-txt { font-size: 17px; font-weight: 700; color: #1F1A14; min-height: 24px; }
+    #sub-txt    { font-size: 13px; color: #7A6E62; margin-top: 3px; }
     #thinking   {
-      font-size: 12px; color: #fbbf24; margin-top: 5px; display: none;
+      font-size: 12px; color: #C4622D; margin-top: 5px; display: none;
       animation: blink 0.9s infinite;
     }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
@@ -103,51 +103,51 @@
     .btn:hover  { opacity: .85; transform: translateY(-1px); }
     .btn:active { transform: translateY(0); }
     .btn:last-of-type { margin-bottom: 0; }
-    .btn-green { background: #4ade80; color: #0a0a1a; }
-    .btn-blue  { background: #60a5fa; color: #0a0a1a; }
+    .btn-green { background: #C4622D; color: #FDF8F2; }
+    .btn-blue  { background: #6B5E50; color: #FDF8F2; }
 
     select {
       width: 100%; padding: 7px 8px; margin-top: 8px;
-      border: 1px solid #3a4a6e; border-radius: 6px;
-      background: #0f1e3a; color: #ddd; font-size: 13px; cursor: pointer;
+      border: 1px solid #CCC2B0; border-radius: 6px;
+      background: #F2EDE3; color: #1F1A14; font-size: 13px; cursor: pointer;
     }
 
     /* Material */
-    .mat-lbl { font-size: 11px; color: #556; margin-bottom: 3px; }
+    .mat-lbl { font-size: 11px; color: #9A8E82; margin-bottom: 3px; }
     .mat-lbl + .mat-lbl { margin-top: 8px; }
     #cap-black, #cap-white { font-size: 19px; min-height: 24px; word-break: break-all; }
-    #score-line { margin-top: 7px; font-size: 13px; color: #4ade80; }
+    #score-line { margin-top: 7px; font-size: 13px; color: #C4622D; }
 
     /* Move history */
     #history {
       max-height: 180px; overflow-y: auto;
       font-size: 13px; font-family: monospace; line-height: 1.65;
-      scrollbar-width: thin; scrollbar-color: #334 transparent;
+      scrollbar-width: thin; scrollbar-color: #CCC2B0 transparent;
     }
     .hist-row { display: grid; grid-template-columns: 26px 1fr 1fr; gap: 2px; }
-    .hist-num { color: #445; }
+    .hist-num { color: #9A8E82; }
     .hist-san { padding: 1px 4px; border-radius: 3px; }
-    .hist-san:hover { background: #2d4a7a; }
+    .hist-san:hover { background: #D8D0C4; }
 
     /* ── Promotion Modal ─────────────────────────────────────── */
     #promo-modal {
       display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,.78); z-index: 200;
+      background: rgba(31,26,20,.65); z-index: 200;
       align-items: center; justify-content: center;
     }
     #promo-modal.open { display: flex; }
     #promo-box {
-      background: #16213e; border: 2px solid #3a4a6e;
+      background: #EAE3D6; border: 2px solid #CCC2B0;
       border-radius: 12px; padding: 24px; text-align: center;
     }
-    #promo-box p { color: #bbb; margin-bottom: 14px; font-size: 14px; }
+    #promo-box p { color: #7A6E62; margin-bottom: 14px; font-size: 14px; }
     #promo-choices { display: flex; gap: 10px; }
     .promo-opt {
       font-size: 52px; padding: 10px 14px; line-height: 1;
       border-radius: 8px; border: 2px solid transparent; cursor: pointer;
       transition: border-color .15s, background .15s;
     }
-    .promo-opt:hover { border-color: #4ade80; background: #1e3a5f; }
+    .promo-opt:hover { border-color: #C4622D; background: #D8D0C4; }
   </style>
 </head>
 <body>
@@ -204,7 +204,7 @@
 
     <div class="card">
       <h3>Move History</h3>
-      <div id="history"><span style="color:#445">No moves yet</span></div>
+      <div id="history"><span style="color:#9A8E82">No moves yet</span></div>
     </div>
 
   </div>
@@ -398,28 +398,28 @@ function renderStatus() {
   const chess  = GS.chess;
   const sTxt   = document.getElementById('status-txt');
   const sub    = document.getElementById('sub-txt');
-  sTxt.style.color = '#fff';
+  sTxt.style.color = '#1F1A14';
   sub.textContent  = '';
 
   if (chess.in_checkmate()) {
     const winner = chess.turn() === 'w' ? 'Black' : 'White';
     sTxt.textContent = `${winner} wins! Checkmate`;
-    sTxt.style.color = '#4ade80';
+    sTxt.style.color = '#C4622D';
     GS.gameOver = true;
   } else if (chess.in_stalemate()) {
     sTxt.textContent = 'Draw — Stalemate';
-    sTxt.style.color = '#fbbf24';
+    sTxt.style.color = '#7A6E62';
     GS.gameOver = true;
   } else if (chess.in_draw()) {
     sTxt.textContent = 'Draw';
-    sTxt.style.color = '#fbbf24';
+    sTxt.style.color = '#7A6E62';
     sub.textContent  = chess.in_threefold_repetition() ? 'Threefold repetition'
                      : chess.insufficient_material()   ? 'Insufficient material'
                      : '50-move rule';
     GS.gameOver = true;
   } else if (chess.in_check()) {
     sTxt.textContent = 'Check!';
-    sTxt.style.color = '#f87171';
+    sTxt.style.color = '#C4622D';
     sub.textContent  = chess.turn() === 'w' ? 'White to move' : 'Black to move';
   } else {
     sTxt.textContent = chess.turn() === 'w' ? 'White to move' : 'Black to move';
@@ -430,7 +430,7 @@ function renderHistory() {
   const hist = GS.chess.history();
   const el   = document.getElementById('history');
   if (!hist.length) {
-    el.innerHTML = '<span style="color:#445">No moves yet</span>';
+    el.innerHTML = '<span style="color:#9A8E82">No moves yet</span>';
     return;
   }
   let html = '';
