@@ -1,3 +1,6 @@
 [create_templates.main]
 
 [create_templates.lima]
+
+[providers.modal]
+is_enabled = false
